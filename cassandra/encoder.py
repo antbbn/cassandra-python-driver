@@ -55,13 +55,13 @@ class Encoder(object):
     directly customized by users.
     """
 
-    _mapping = None
+    mapping = None
     """
     A list of tuples mapping python types to encoder functions.
     """
 
     def __init__(self):
-        self._mapping = [
+        self.mapping = [
             (ValueSequence, self.cql_encode_sequence),
             (Point, self.cql_encode_str_quoted),
             (LineString, self.cql_encode_str_quoted),
@@ -94,32 +94,32 @@ class Encoder(object):
             (type(None), self.cql_encode_none),
          ]
 
-    def get_encode_function(need_data_type):
+    def get_encode_function(self, need_data_type):
         """
-        Retrieve the encoding function for a given type, respecing
-        the sublass logic implemented in cql_encode_all_types.
-        Raises KeyError if no encoding function is available.
+        Returns the appropriate encoder function for a given data type.
+        If the data type is a subclass of a registered type, the registered
+        type's encoder is returned. This respects the order in :attr:`~.Encoder.mapping`.
         """
-        for data_type, encode_function in self._mapping:
+        for data_type, encode_function in self.mapping:
             if issubclass(need_data_type, data_type):
                 return encode_function
         raise KeyError('No encode function found for type: %s', need_data_type)
 
-    def add_or_override_mapping(new_data_type, new_encode_function):
+    def add_or_override_mapping(self, new_data_type, new_encode_function):
         """
         Adds a new mapping to the encoder or overrides an existing one.
         If the new type subclasses an existing one ensures that it will be
         evaluated before the existing one.
         """
-        for i, (data_type, _ ) in enumerate(self._mapping):
+        for i, (data_type, _ ) in enumerate(self.mapping):
             if new_data_type == data_type:
-                self._mapping[i] = (new_data_type, new_encode_function)
+                self.mapping[i] = (new_data_type, new_encode_function)
                 return
             if issubclass(new_data_type, data_type):
-                self._mapping.insert(i, (new_data_type, new_encode_function))
+                self.mapping.insert(i, (new_data_type, new_encode_function))
                 return
 
-        self._mapping.append((new_data_type, new_encode_function))
+        self.mapping.append((new_data_type, new_encode_function))
 
     def cql_encode_none(self, val):
         """
@@ -232,9 +232,9 @@ class Encoder(object):
     def cql_encode_all_types(self, val, as_text_type=False):
         """
         Converts any type into a CQL string, defaulting to ``cql_encode_object``
-        if :attr:`~Encoder.mapping` does not contain an entry for the type.
+        if :attr:`~.Encoder.mapping` does not contain an entry for the type.
         """
-        for data_type, encode_function in self._mapping:
+        for data_type, encode_function in self.mapping:
             if isinstance(val, data_type):
                 encoded = encode_function(val)
                 break
